@@ -1,0 +1,25 @@
+[*]
+end_of_line = lf
+indent_size = tab
+indent_style = tab
+insert_final_newline = true
+tab_width = 4
+ij_continuation_indent_size = 2
+charset = utf-8
+trim_trailing_whitespace = true
+
+[*.kt]
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_line_comment_at_first_column = false
+ij_kotlin_block_comment_add_space = true
+ij_kotlin_block_comment_at_first_column = false
+ij_kotlin_line_comment_add_space = true
+ij_kotlin_line_comment_add_space_on_reformat = true
+ij_kotlin_space_after_comma = true
+ij_kotlin_space_before_comma = false
+ij_kotlin_keep_first_column_comment = false
+# noinspection EditorConfigKeyCorrectness
+ktlint_disabled_rules = standard:string-template
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_name_count_to_use_star_import = 999
+ij_kotlin_name_count_to_use_star_import_for_members = 999

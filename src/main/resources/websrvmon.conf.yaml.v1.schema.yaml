@@ -1,0 +1,103 @@
+---
+$schema: "https://json-schema.org/draft-07/schema"
+$id: https://rickosborne.github.com/websrvmon/schema/websrcmon.conf.yaml.v1.schema.yaml
+title: websrvmon configuration file, v1
+
+definitions:
+    appConfig:
+        type: object
+        properties:
+            defaults:
+                $ref: "#/definitions/defaultsConfig"
+            services:
+                type: array
+                items:
+                    $ref: "#/definitions/serviceConfig"
+                $comment: Service configurations
+            systemctl:
+                type: string
+        required:
+            - services
+        additionalProperties: false
+    defaultsConfig:
+        type: object
+        properties:
+            emailApp:
+                type: array
+                items:
+                    type: string
+            emailBody:
+                type: string
+                $comment: Default email body
+            emailFrom:
+                type: string
+                $comment: Default email From address
+            emailSubject:
+                type: string
+                $comment: Default email subject
+            emailTo:
+                type: string
+                $comment: Default email To address
+            execTimeoutSecs:
+                type: number
+                $comment: Default exec timeout in seconds
+            fetchTimeoutSecs:
+                type: number
+                $comment: Default fetch timeout in seconds
+        additionalProperties: false
+    serviceConfig:
+        type: object
+        properties:
+            check:
+                type: boolean
+                $comment: Whether to check the service
+                default: true
+            name:
+                type: string
+                $comment: Service human-readable name
+            url:
+                type: string
+                $comment: URL to fetch
+            period:
+                type: string
+                $comment: How often to fetch, in ISO Duration format
+            execTimeoutSecs:
+                type: number
+                $comment: When running scripts or restarts, how long to wait
+            fetchTimeoutSecs:
+                type: number
+                $comment: When fetching the URL, how long to wait
+            restarts:
+                type: array
+                items:
+                    type: string
+            scripts:
+                type: array
+                items:
+                    type: string
+            emails:
+                type: array
+                items:
+                    $ref: "#/definitions/emailConfig"
+        required:
+            - url
+        additionalProperties: false
+    emailConfig:
+        type: object
+        $comment: Configuration for an email to be sent
+        properties:
+            emailSubject:
+                type: string
+                $comment: Email subject line
+            emailFrom:
+                type: string
+                $comment: Email From address
+            emailTo:
+                type: string
+                $comment: Email To address
+            emailBody:
+                type: string
+                $comment: Email body
+        additionalProperties: false
+
+$ref: "#/definitions/appConfig"
