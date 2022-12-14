@@ -14,6 +14,8 @@ services:
     -
         name: rickosborne.org WordPress
         url: https://rickosborne.org/blog/
+        after:
+            - rickosborne.org httpd
         emails:
             -
                 emailSubject: WordPress down on rickosborne.org
@@ -29,6 +31,8 @@ services:
     -
         name: Mastodon at m.rickosborne.org
         url: https://m.rickosborne.org/@rick
+        after:
+            - rickosborne.org httpd
         restarts:
             - "mastodon*"
         emails:
@@ -39,6 +43,8 @@ services:
     -
         name: Bookwyrm at lit.rickosborne.org
         url: https://lit.rickosborne.org/@rick
+        after:
+            - rickosborne.org httpd
         restarts:
             - "bookwyrm*"
         emails:
@@ -49,6 +55,8 @@ services:
     -
         name: PixelFed at ricko.photos
         url: https://ricko.photos/@rick
+        after:
+            - rickosborne.org httpd
         restarts:
             - "pixelfed*"
         emails:
@@ -59,6 +67,8 @@ services:
     -
         name: Funkwhale at funkwhale.monkeyhex.com
         url: https://funkwhale.monkeyhex.com/@rick
+        after:
+            - rickosborne.org httpd
         emails:
             -
                 emailSubject: Funkwhale down on funkwhale.monkeyhex.com

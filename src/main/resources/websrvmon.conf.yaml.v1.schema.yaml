@@ -48,6 +48,10 @@ definitions:
     serviceConfig:
         type: object
         properties:
+            after:
+                type: array
+                items:
+                    type: string
             check:
                 type: boolean
                 $comment: Whether to check the service

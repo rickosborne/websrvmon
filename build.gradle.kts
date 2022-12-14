@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "org.rickosborne"
-version = "1.0-SNAPSHOT"
+version = "1.0.2"
 val ktlint: Configuration by configurations.creating
 
 repositories {
@@ -79,6 +79,7 @@ application {
 tasks.jar {
 	manifest {
 		attributes["Main-Class"] = "MainKt"
+		attributes["Implementation-Version"] = archiveVersion
 	}
 	configurations["compileClasspath"].forEach { file: File ->
 		from(zipTree(file.absoluteFile))

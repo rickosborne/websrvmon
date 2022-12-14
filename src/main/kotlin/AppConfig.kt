@@ -30,6 +30,7 @@ data class DefaultsConfig(
 
 @Serializable
 data class ServiceConfig(
+	val after: List<String>? = null,
 	val attempts: Int? = null,
 	val check: Boolean? = null,
 	val emails: List<EmailConfig>? = null,
@@ -106,6 +107,8 @@ fun materializeDefaults(specified: DefaultsConfig?): DefaultsConfig {
 
 fun materializeService(service: ServiceConfig, defaults: DefaultsConfig): ServiceConfig {
 	return ServiceConfig(
+		after = service.after,
+		attempts = service.attempts,
 		check = service.check ?: true,
 		emails = service.emails?.map { materializeEmail(it, defaults) },
 		execTimeoutSecs = service.execTimeoutSecs ?: defaults.execTimeoutSecs,
