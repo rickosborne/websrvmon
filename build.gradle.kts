@@ -1,5 +1,8 @@
+
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.io.FileOutputStream
+import java.util.*
 
 plugins {
 	java
@@ -10,7 +13,7 @@ plugins {
 }
 
 group = "org.rickosborne"
-version = "1.0.2"
+version = "1.0.4"
 val ktlint: Configuration by configurations.creating
 
 repositories {
@@ -37,6 +40,7 @@ dependencies {
 
 val outputDir = "${project.buildDir}/reports/ktlint/"
 val inputFiles = project.fileTree(mapOf("dir" to "src", "include" to "**/*.kt"))
+val generatedVersionDir = "$buildDir/generated-version"
 
 val ktlintCheck by tasks.creating(JavaExec::class) {
 	inputs.files(inputFiles)
@@ -76,13 +80,38 @@ application {
 	mainClass.set("MainKt")
 }
 
+sourceSets {
+	main {
+		kotlin {
+			output.dir(generatedVersionDir)
+		}
+	}
+}
+
 tasks.jar {
 	manifest {
 		attributes["Main-Class"] = "MainKt"
 		attributes["Implementation-Version"] = archiveVersion
+		attributes["Implementation-Title"] = "websrvmon"
+		attributes["Implementation-Vendor"] = "rickosborne.org"
 	}
 	configurations["compileClasspath"].forEach { file: File ->
 		from(zipTree(file.absoluteFile))
 	}
 	duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+tasks.register("generateVersionProperties") {
+	doLast {
+		val propertiesFile = file("$generatedVersionDir/version.properties")
+		propertiesFile.parentFile.mkdirs()
+		val properties = Properties()
+		properties.setProperty("version", "$version")
+		val out = FileOutputStream(propertiesFile)
+		properties.store(out, null)
+	}
+}
+
+tasks.named("processResources") {
+	dependsOn("generateVersionProperties")
 }

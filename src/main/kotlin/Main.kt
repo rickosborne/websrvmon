@@ -1,21 +1,13 @@
+
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapMerge
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import mu.KotlinLogging
 import java.io.File
 import java.io.IOException
 import java.net.URI
 import java.net.http.HttpClient
-import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpResponse.BodyHandlers
@@ -33,6 +25,10 @@ private val logger = KotlinLogging.logger {}
 
 @OptIn(FlowPreview::class)
 fun main(args: Array<String>) = runBlocking {
+	val appVersion = getBuildProperties().version
+	withContext(Dispatchers.IO) {
+		logger.info { "websrvmon v${appVersion}" }
+	}
 	val parser = ArgParser("websrvmon")
 	val configPath by parser.option(
 		ArgType.String,
@@ -223,28 +219,31 @@ suspend fun checkService(service: ServiceConfig): ServiceFailure? {
 			httpResponse = withContext(Dispatchers.IO) {
 				httpClient.send(httpRequest, BodyHandlers.ofString())
 			}
-		} catch (e: HttpConnectTimeoutException) {
-			throw ServiceFailure("Could not connect: ${service.url}", null, between(startTime, Instant.now()), service)
+		} catch (e: IOException) {
+			throw ServiceFailure(
+				failure = "Could not connect: ${service.url}",
+				httpResponse = null,
+				requestDuration = between(startTime, Instant.now()),
+				service = service
+			)
 		}
 		val requestDuration = between(startTime, Instant.now())
-		try {
-			if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
-				throw ServiceFailure(
-					failure = "Unsuccessful status code: ${httpResponse.statusCode()}",
-					httpResponse = httpResponse,
-					requestDuration = requestDuration,
-					service = service,
-				)
-			}
-			withContext(Dispatchers.IO) {
-				logger.info { "Okay after ${requestDuration.toMillis()}ms: ${service.name}" }
-			}
-		} catch (e: ServiceFailure) {
-			withContext(Dispatchers.IO) {
-				logger.error { e.message }
-			}
-			return e
+		if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
+			throw ServiceFailure(
+				failure = "Unsuccessful status code: ${httpResponse.statusCode()}",
+				httpResponse = httpResponse,
+				requestDuration = requestDuration,
+				service = service,
+			)
 		}
+		withContext(Dispatchers.IO) {
+			logger.info { "Okay after ${requestDuration.toMillis()}ms: ${service.name}" }
+		}
+	} catch (e: ServiceFailure) {
+		withContext(Dispatchers.IO) {
+			logger.error { e.message }
+		}
+		return e
 	} catch (e: Throwable) {
 		withContext(Dispatchers.IO) {
 			logger.error(e) { "Failed to check service ${service.name}: ${e.message}" }
@@ -323,7 +322,7 @@ suspend fun runSomething(
 	}
 	try {
 		if (!dryRun) {
-			val (exitCode, _, stderr) = kotlinx.coroutines.withTimeout(timeout = timeout.seconds) {
+			val (exitCode, _, stderr) = withTimeout(timeout = timeout.seconds) {
 				block()
 			}
 			if (exitCode != 0) {
