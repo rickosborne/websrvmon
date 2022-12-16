@@ -269,7 +269,12 @@ suspend fun handleRestart(
 }
 
 suspend fun handleScript(scriptName: String, timeout: Long, dryRun: Boolean) {
-	runSomething(scriptName, timeout, dryRun) { executeShellCommand(scriptName) }
+	runSomething(scriptName, timeout, dryRun) {
+		// TODO: Rethink my life choices
+		val args = scriptName.split(Regex("\\s+")).toMutableList()
+		val program = args.removeAt(0)
+		executeCommand(null, Path.of(program), *args.toTypedArray())
+	}
 }
 
 fun interpolate(source: String, failure: ServiceFailure): String {
