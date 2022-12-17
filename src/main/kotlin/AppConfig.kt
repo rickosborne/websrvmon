@@ -26,6 +26,7 @@ data class DefaultsConfig(
 	val execTimeoutSecs: Long? = null,
 	val fetchTimeoutSecs: Long? = null,
 	val period: String? = null,
+	val waitSecs: Int? = null,
 )
 
 @Serializable
@@ -41,6 +42,7 @@ data class ServiceConfig(
 	val restarts: List<String>? = null,
 	val scripts: List<String>? = null,
 	val url: String,
+	val waitSecs: Int? = null,
 )
 
 @Serializable
@@ -67,6 +69,7 @@ const val EMAIL_BODY_DEFAULT = "The following service appears to be down:\n\n{{s
 const val EMAIL_SUBJECT_DEFAULT = "Problems: {{service.name}}"
 const val EXEC_TIMEOUT_SECS_DEFAULT = 30L
 const val FETCH_TIMEOUT_SECS_DEFAULT = 30L
+const val WAIT_SECS_DEFAULT = 5
 
 val defaultDefaults = DefaultsConfig(
 	attempts = ATTEMPTS_DEFAULT,
@@ -78,6 +81,7 @@ val defaultDefaults = DefaultsConfig(
 	execTimeoutSecs = EXEC_TIMEOUT_SECS_DEFAULT,
 	fetchTimeoutSecs = FETCH_TIMEOUT_SECS_DEFAULT,
 	period = "PT15M",
+	waitSecs = WAIT_SECS_DEFAULT,
 )
 
 fun readConfig(file: File): AppConfig? {
@@ -102,13 +106,14 @@ fun materializeDefaults(specified: DefaultsConfig?): DefaultsConfig {
 		execTimeoutSecs = specified?.execTimeoutSecs ?: defaultDefaults.execTimeoutSecs,
 		fetchTimeoutSecs = specified?.fetchTimeoutSecs ?: defaultDefaults.fetchTimeoutSecs,
 		period = specified?.period ?: defaultDefaults.period,
+		waitSecs = specified?.waitSecs ?: defaultDefaults.waitSecs,
 	)
 }
 
 fun materializeService(service: ServiceConfig, defaults: DefaultsConfig): ServiceConfig {
 	return ServiceConfig(
 		after = service.after,
-		attempts = service.attempts,
+		attempts = service.attempts ?: defaults.attempts,
 		check = service.check ?: true,
 		emails = service.emails?.map { materializeEmail(it, defaults) },
 		execTimeoutSecs = service.execTimeoutSecs ?: defaults.execTimeoutSecs,
@@ -118,6 +123,7 @@ fun materializeService(service: ServiceConfig, defaults: DefaultsConfig): Servic
 		restarts = service.restarts,
 		scripts = service.scripts,
 		url = service.url,
+		waitSecs = service.waitSecs ?: defaults.waitSecs,
 	)
 }
 

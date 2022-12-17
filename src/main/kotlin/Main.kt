@@ -93,10 +93,14 @@ fun main(args: Array<String>) = runBlocking {
 			logger.info { "${n + 1}. '${phase.joinToString("', '") { s -> s.name }}'" }
 		}
 	}
-	phases.forEachIndexed { phaseNum, services ->
+	var phaseNum = 1
+	var roundNum = 1
+	val alreadyEmailed = mutableSetOf<ServiceConfig>()
+	while (phases.isNotEmpty()) {
+		val services = phases.removeAt(0)
 		runBlocking {
 			withContext(Dispatchers.IO) {
-				logger.info { "Phase ${phaseNum + 1}. '${services.joinToString("', '") { s -> s.name }}'" }
+				logger.info { "Phase ${phaseNum}.${roundNum}. '${services.joinToString("', '") { s -> s.name }}'" }
 			}
 			val failures: List<ServiceFailure> = services
 				.asFlow()
@@ -105,8 +109,10 @@ fun main(args: Array<String>) = runBlocking {
 				.toList()
 			if (failures.isEmpty()) {
 				withContext(Dispatchers.IO) {
-					logger.info { "Phase ${phaseNum + 1} complete.  All services seem fine." }
+					logger.info { "Phase ${phaseNum}.${roundNum} complete.  All services seem fine." }
 				}
+				phaseNum++
+				roundNum = 1
 			} else {
 				withContext(Dispatchers.IO) {
 					logger.info { "Remediating ${failures.size} failure${if (failures.size == 1) "" else "s"}." }
@@ -129,13 +135,36 @@ fun main(args: Array<String>) = runBlocking {
 				}
 				runBlocking {
 					failures
+						.filter { f -> !alreadyEmailed.contains(f.service) }
 						.forEach { failure ->
+							alreadyEmailed.add(failure.service)
 							(failure.service.emails ?: listOf()).forEach { emailConfig ->
 								launch {
 									handleEmail(emailConfig, failure, dryRun)
 								}
 							}
 						}
+				}
+				roundNum++
+				val retries = failures
+					.filter { f -> roundNum < (f.service.attempts ?: ATTEMPTS_DEFAULT) }
+					.map { f -> f.service }
+				val abandoned = failures
+					.filter { f -> roundNum >= (f.service.attempts ?: ATTEMPTS_DEFAULT) }
+					.map { f -> f.service }
+				withContext(Dispatchers.IO) {
+					if (retries.isNotEmpty()) {
+						logger.info { "Will retry next round: '${retries.joinToString("', '") { r -> r.name }}'" }
+					}
+					if (abandoned.isNotEmpty()) {
+						logger.info { "Will not retry: '${abandoned.joinToString("', '") { f -> f.name }}'" }
+					}
+				}
+				if (retries.isNotEmpty()) {
+					phases.add(retries)
+				} else {
+					phaseNum++
+					roundNum = 1
 				}
 			}
 		}
@@ -145,7 +174,7 @@ fun main(args: Array<String>) = runBlocking {
 	}
 }
 
-fun phases(services: List<ServiceConfig>): List<List<ServiceConfig>> {
+fun phases(services: List<ServiceConfig>): MutableList<List<ServiceConfig>> {
 	val done = mutableSetOf<String>()
 	val phases = mutableListOf<List<ServiceConfig>>()
 	val todo = mutableListOf<ServiceConfig>()
@@ -198,6 +227,8 @@ suspend fun checkService(service: ServiceConfig): ServiceFailure? {
 		}
 		return null
 	}
+	val startTime = Instant.now()
+	val serviceFailure: ServiceFailure
 	try {
 		withContext(Dispatchers.IO) {
 			logger.info { "Checking: ${service.name}" }
@@ -213,7 +244,6 @@ suspend fun checkService(service: ServiceConfig): ServiceFailure? {
 			.timeout(timeout.toJavaDuration())
 			.header("User-Agent", "websrvmon")
 			.build()
-		val startTime = Instant.now()
 		val httpResponse: HttpResponse<String>
 		try {
 			httpResponse = withContext(Dispatchers.IO) {
@@ -228,28 +258,41 @@ suspend fun checkService(service: ServiceConfig): ServiceFailure? {
 			)
 		}
 		val requestDuration = between(startTime, Instant.now())
-		if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
-			throw ServiceFailure(
-				failure = "Unsuccessful status code: ${httpResponse.statusCode()}",
-				httpResponse = httpResponse,
-				requestDuration = requestDuration,
-				service = service,
-			)
+		if (httpResponse.statusCode() in 200..299) {
+			withContext(Dispatchers.IO) {
+				logger.info { "Okay after ${requestDuration.toMillis()}ms: ${service.name}" }
+			}
+			return null
 		}
-		withContext(Dispatchers.IO) {
-			logger.info { "Okay after ${requestDuration.toMillis()}ms: ${service.name}" }
-		}
+		throw ServiceFailure(
+			failure = "Unsuccessful status code: ${httpResponse.statusCode()}",
+			httpResponse = httpResponse,
+			requestDuration = requestDuration,
+			service = service,
+		)
 	} catch (e: ServiceFailure) {
 		withContext(Dispatchers.IO) {
 			logger.error { e.message }
 		}
-		return e
+		serviceFailure = e
 	} catch (e: Throwable) {
+		val requestDuration = between(startTime, Instant.now())
 		withContext(Dispatchers.IO) {
 			logger.error(e) { "Failed to check service ${service.name}: ${e.message}" }
 		}
+		serviceFailure = ServiceFailure(
+			failure = "Unexpected error: ${e.message}",
+			httpResponse = null,
+			requestDuration = requestDuration,
+			service = service,
+		)
 	}
-	return null
+	val waitSecs = service.waitSecs ?: WAIT_SECS_DEFAULT
+	withContext(Dispatchers.IO) {
+		logger.info { "Waiting ${waitSecs}s for ${service.name}" }
+	}
+	delay(waitSecs.seconds)
+	return serviceFailure
 }
 
 suspend fun handleRestart(
