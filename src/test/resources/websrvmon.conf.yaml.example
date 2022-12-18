@@ -14,6 +14,8 @@ services:
     -
         name: rickosborne.org WordPress
         url: https://rickosborne.org/blog/
+        headers:
+            - "Rick: was here"
         after:
             - rickosborne.org httpd
         emails:

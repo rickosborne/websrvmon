@@ -9,7 +9,6 @@ import java.time.Duration
 
 @Serializable
 data class AppConfig(
-	val betweenSecs: Int? = null,
 	val defaults: DefaultsConfig? = null,
 	val systemctl: String,
 	val services: List<ServiceConfig>,
@@ -37,6 +36,7 @@ data class ServiceConfig(
 	val emails: List<EmailConfig>? = null,
 	val execTimeoutSecs: Long? = null,
 	val fetchTimeoutSecs: Long? = null,
+	val headers: List<String>? = null,
 	val name: String,
 	val period: String? = null,
 	val restarts: List<String>? = null,
@@ -118,6 +118,7 @@ fun materializeService(service: ServiceConfig, defaults: DefaultsConfig): Servic
 		emails = service.emails?.map { materializeEmail(it, defaults) },
 		execTimeoutSecs = service.execTimeoutSecs ?: defaults.execTimeoutSecs,
 		fetchTimeoutSecs = service.fetchTimeoutSecs ?: defaults.fetchTimeoutSecs,
+		headers = service.headers,
 		name = service.name,
 		period = service.period ?: defaults.period,
 		restarts = service.restarts,

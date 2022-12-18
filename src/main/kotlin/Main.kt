@@ -161,7 +161,7 @@ fun main(args: Array<String>) = runBlocking {
 					}
 				}
 				if (retries.isNotEmpty()) {
-					phases.add(retries)
+					phases.add(0, retries)
 				} else {
 					phaseNum++
 					roundNum = 1
@@ -238,11 +238,24 @@ suspend fun checkService(service: ServiceConfig): ServiceFailure? {
 			.followRedirects(HttpClient.Redirect.NORMAL)
 			.connectTimeout(timeout.toJavaDuration())
 			.build()
-		val httpRequest = HttpRequest.newBuilder()
+		var httpRequestBuilder = HttpRequest.newBuilder()
 			.GET()
 			.uri(URI(service.url))
 			.timeout(timeout.toJavaDuration())
 			.header("User-Agent", "websrvmon")
+		for (header in (service.headers ?: listOf())) {
+			val parts = Regex("^([^:]+):\\s+(.*)$").find(header)
+			if (parts != null) {
+				val key = parts.groupValues[1]
+				val value = parts.groupValues[2]
+				httpRequestBuilder = httpRequestBuilder.header(key, value)
+			} else {
+				withContext(Dispatchers.IO) {
+					logger.warn { "Invalid header for service '${service.name}': ${header}" }
+				}
+			}
+		}
+		val httpRequest = httpRequestBuilder
 			.build()
 		val httpResponse: HttpResponse<String>
 		try {

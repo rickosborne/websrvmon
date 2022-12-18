@@ -56,6 +56,10 @@ definitions:
                 type: boolean
                 $comment: Whether to check the service
                 default: true
+            headers:
+                type: array
+                items:
+                    type: string
             name:
                 type: string
                 $comment: Service human-readable name
